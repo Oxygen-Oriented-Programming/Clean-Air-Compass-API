@@ -3,6 +3,7 @@ from default_locations.models import DefaultLocation
 from accounts.models import User
 from django.conf import settings
 from rest_framework.exceptions import AuthenticationFailed
+from django.core.exceptions import ObjectDoesNotExist
 
 
 def register_social_user(provider, user_id, email, name):
@@ -13,18 +14,35 @@ def register_social_user(provider, user_id, email, name):
 
             registered_user = User.objects.get(email=email)
             registered_user.check_password(settings.SOCIAL_SECRET)
-            default_location = DefaultLocation.objects.get(user=registered_user).default_location
+            default_location = None
+            try:
+                default_location = DefaultLocation.objects.get(user=registered_user).default_location
+            except ObjectDoesNotExist:
+                pass
             Token.objects.filter(user=registered_user).delete()
             Token.objects.create(user=registered_user)
             new_token = list(Token.objects.filter(
                 user_id=registered_user).values("key"))
             print(registered_user.id)
-            return {
-                'user_id': registered_user.id,
-                'username': registered_user.username,
-                'default_location': default_location,
-                'email': registered_user.email,
-                'tokens': str(new_token[0]['key'])}
+            # return {
+            #     'user_id': registered_user.id,
+            #     'username': registered_user.username,
+            #     'default_location': default_location,
+            #     'email': registered_user.email,
+            #     'tokens': str(new_token[0]['key'])}
+            if default_location:
+                return {
+                    'user_id': registered_user.id,
+                    'username': registered_user.username,
+                    'default_location': default_location,
+                    'email': registered_user.email,
+                    'tokens': str(new_token[0]['key'])}
+            else:
+                return {
+                    'user_id': registered_user.id,
+                    'username': registered_user.username,
+                    'email': registered_user.email,
+                    'tokens': str(new_token[0]['key'])}
 
         else:
             raise AuthenticationFailed(
